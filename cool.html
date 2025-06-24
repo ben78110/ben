@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Galerie Vidéos Avancée</title>
+  <style>
+    /* Reset & base */
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      background: #121212;
+      color: #eee;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      background: #1f1f1f;
+      padding: 20px;
+      text-align: center;
+      font-size: 2em;
+      font-weight: bold;
+      letter-spacing: 2px;
+      flex-shrink: 0;
+    }
+    .controls {
+      background: #222;
+      padding: 15px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .filters {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .filters button {
+      background: #444;
+      border: none;
+      color: #eee;
+      padding: 8px 16px;
+      font-size: 1em;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+      user-select: none;
+    }
+    .filters button:hover, .filters button.active {
+      background: #00bfa5;
+      color: #121212;
+      font-weight: bold;
+    }
+    .search-sort {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      margin-left: 15px;
+    }
+    .search-sort input[type="text"] {
+      padding: 8px 12px;
+      font-size: 1em;
+      border-radius: 5px;
+      border: none;
+      outline: none;
+      width: 200px;
+      max-width: 100%;
+    }
+    .search-sort select {
+      padding: 8px 12px;
+      font-size: 1em;
+      border-radius: 5px;
+      border: none;
+      outline: none;
+      background: #444;
+      color: #eee;
+      cursor: pointer;
+    }
+    main.gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 15px;
+      padding: 20px;
+      max-width: 1200px;
+      margin: auto;
+      flex-grow: 1;
+    }
+    main.gallery video {
+      width: 100%;
+      border-radius: 8px;
+      background: black;
+      outline: none;
+      cursor: pointer;
+      transition: transform 0.3s ease;
+    }
+    main.gallery video:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 15px #00bfa5;
+    }
+    footer {
+      text-align: center;
+      padding: 15px;
+      font-size: 0.9em;
+      background: #1f1f1f;
+      margin-top: 20px;
+      flex-shrink: 0;
+    }
+    /* Pagination */
+    .pagination {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin: 20px 0 40px 0;
+      flex-wrap: wrap;
+    }
+    .pagination button {
+      background: #444;
+      border: none;
+      color: #eee;
+      padding: 8px 12px;
+      font-size: 1em;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+      user-select: none;
+    }
+    .pagination button:hover, .pagination button.active {
+      background: #00bfa5;
+      color: #121212;
+      font-weight: bold;
+    }
+    .pagination button:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+    /* Fullscreen overlay */
+    #overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.9);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      visibility: hidden;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      z-index: 1000;
+      flex-direction: column;
+    }
+    #overlay.active {
+      visibility: visible;
+      opacity: 1;
+    }
+    #overlay video {
+      max-width: 90vw;
+      max-height: 80vh;
+      border-radius: 10px;
+      outline: none;
+    }
+    #overlay button.close-btn {
+      margin-top: 20px;
+      background: #00bfa5;
+      border: none;
+      color: #121212;
+      padding: 10px 20px;
+      font-size: 1.2em;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    #overlay button.close-btn:hover {
+      background: #008e76;
+    }
+    @media (max-width: 600px) {
+      main.gallery {
+        grid-template-columns: 1fr;
+        padding: 10px;
+      }
+      .filters {
+        padding: 0;
+      }
+      .filters button {
+        flex: 1 1 auto;
+        min-width: 80px;
+      }
+      .search-sort {
+        flex-direction: column;
+        margin-left: 0;
+        gap: 8px;
+      }
+      .search-sort input[type="text"], .search-sort select {
+        width: 100%;
+        max-width: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>Galerie de Vidéos Avancée</header>
+
+  <section class="controls" aria-label="Contrôles de filtrage, recherche et tri">
+    <nav class="filters" aria-label="Filtres de catégories">
+      <button class="filter-btn active" data-filter="all" aria-pressed="true">Tous</button>
+      <button class="filter-btn" data-filter="nature" aria-pressed="false">Nature</button>
+      <button class="filter-btn" data-filter="animaux" aria-pressed="false">Animaux</button>
+      <button class="filter-btn" data-filter="espace" aria-pressed="false">Espace</button>
+    </nav>
+
+    <div class="search-sort">
+      <input type="text" id="search" aria-label="Recherche de vidéos par titre" placeholder="Recherche... (ex: fleur, kitten)" />
+      <select id="sort" aria-label="Trier les vidéos">
+        <option value="default">Trier par défaut</option>
+        <option value="date-desc">Date (plus récent → ancien)</option>
+        <option value="date-asc">Date (ancien → récent)</option>
+        <option value="pop-desc">Popularité (du plus populaire)</option>
+        <option value="pop-asc">Popularité (du moins populaire)</option>
+      </select>
+    </div>
+  </section>
+
+  <main class="gallery" aria-live="polite" aria-label="Galerie vidéos filtrables, triables et recherchables">
+    <!-- Vidéos avec données fictives pour tri -->
+    <video tabindex="0" controls preload="metadata" poster="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.webm"
+      data-category="nature" data-title="Fleur en Gros Plan" data-date="2023-06-15" data-popularity="56">
+      <source src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.webm" type="video/webm" />
+      Ton navigateur ne supporte pas la balise vidéo.
+    </video>
+
+    <video tabindex="0" controls preload="metadata" poster="https://www.w3schools.com/html/mov_bbb.jpg"
+      data-category="animaux" data-title="Oiseau en Vol" data-date="2024-01-20" data-popularity="123">
+      <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4" />
+      Ton navigateur ne supporte pas la balise vidéo.
+    </video>
+
+    <video tabindex="0" controls preload="metadata" poster="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/earth.mp4"
+      data-category="espace" data-title="Planète Terre" data-date="2023-11-01" data-popularity="89">
+      <source src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/earth.mp4" type="video/mp4" />
+      Ton navigateur ne supporte pas la balise vidéo.
+    </video>
+
+    <video tabindex="0" controls preload="metadata" poster="https://interactive-examples.mdn.mozilla.net/media/cc0-images/kitten-1.jpg"
+      data-category="animaux nature" data-title="Chaton Joueur" data-date="2022-12-05" data-popularity="140">
+      <source src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/kitten.webm" type="video/webm" />
+      Ton navigateur ne supporte pas la balise vidéo.
+    </video>
+
+    <video tabindex="0" controls preload="metadata" poster="https://cdn.pixabay.com/photo/2013/07/12/18/20/milky-way-153098_960_720.jpg"
+      data-category="espace" data-title="Voie Lactée" data-date="2024-02-10" data-popularity="78">
+      <source src="https://cdn.videvo.net/videvo_files/video/free/2019-11/small_watermarked/191102_06_Voyager_4k_001_preview.webm" type="video/webm" />
+      Ton navigateur ne supporte pas la balise vidéo.
+    </video>
+  </main>
+
+  <nav class="pagination" aria-label="Pagination des vidéos">
+    <!-- Les boutons seront créés en JS -->
+  </nav>
+
+  <footer>
+    &copy; 2025 Galerie Vidéos - Version Avancée
+  </footer>
+
+  <!-- Overlay fullscreen vidéo -->
+  <div id="overlay" role="dialog" aria-modal="true" aria-label="Lecture vidéo en plein écran">
+    <video controls autoplay></video>
+    <button class="close-btn" aria-label="Fermer la vidéo">✕ Fermer</button>
+  </div>
+
+  <script>
+    (() => {
+      const filterButtons = document.querySelectorAll('.filter-btn');
+      const gallery = document.querySelector('main.gallery');
+      const videos = Array.from(gallery.querySelectorAll('video'));
+      const searchInput = document.getElementById('search');
+      const sortSelect = document.getElementById('sort');
+      const pagination = document.querySelector('.pagination');
+      const overlay = document.getElementById('overlay');
+      const overlayVideo = overlay.querySelector('video');
+      const overlayClose = overlay.querySelector('.close-btn');
+
+      const VIDEOS_PER_PAGE = 3;
+      let currentFilter = 'all';
+      let currentSearch = '';
+      let currentSort = 'default';
+      let currentPage = 1;
+
+      // Fonction pour filtrer, trier et paginer
+      function updateGallery() {
+        // Filtrer par catégorie
+        let filtered = videos.filter(video => {
+          const cats = video.dataset.category.split(' ');
+          const title = video.dataset.title.toLowerCase();
+          const matchCategory = currentFilter === 'all' || cats.includes(currentFilter);
+          const matchSearch = title.includes(currentSearch.toLowerCase());
+          return matchCategory && matchSearch;
+        });
+
+        // Trier
+        if(currentSort === 'date-desc') {
+          filtered.sort((a,b) => new Date(b.dataset.date) - new Date(a.dataset.date));
+        } else if(currentSort === 'date-asc') {
+          filtered.sort((a,b) => new Date(a.dataset.date) - new Date(b.dataset.date));
+        } else if(currentSort === 'pop-desc') {
+          filtered.sort((a,b) => parseInt(b.dataset.popularity) - parseInt(a.dataset.popularity));
+        } else if(currentSort === 'pop-asc') {
+          filtered.sort((a,b) => parseInt(a.dataset.popularity) - parseInt(b.dataset.popularity));
+        }
+        // Sinon tri par défaut = ordre du DOM
+
+        // Pagination
+        const totalPages = Math.ceil(filtered.length / VIDEOS_PER_PAGE);
+        if(currentPage > totalPages) currentPage = totalPages || 1;
+
+        // Masquer toutes
+        videos.forEach(video => {
+          video.style.display = 'none';
+          video.pause();
+          video.currentTime = 0;
+        });
+
+        // Afficher la page actuelle
+        const startIdx = (currentPage -1) * VIDEOS_PER_PAGE;
+        const pageVideos = filtered.slice(startIdx, startIdx + VIDEOS_PER_PAGE);
+        pageVideos.forEach(v => v.style.display = 'block');
+
+        // Mettre à jour pagination
+        renderPagination(totalPages);
+
+        // Si pas de résultat
+        if(filtered.length === 0){
+          gallery.innerHTML = '<p style="color:#bbb; font-size:1.2em; text-align:center;">Aucune vidéo trouvée.</p>';
+          pagination.innerHTML = '';
+        }
+      }
+
+      function renderPagination(totalPages) {
+        pagination.innerHTML = '';
+        if(totalPages <= 1) return; // Pas besoin de pagination
+
+        // Bouton précédent
+        const prevBtn = document.createElement('button');
+        prevBtn.textContent = '‹ Précédent';
+        prevBtn.disabled = currentPage === 1;
+        prevBtn.addEventListener('click', () => {
+          if(currentPage > 1) {
+            currentPage--;
+            updateGallery();
+          }
+        });
+        pagination.appendChild(prevBtn);
+
+        // Boutons numérotés (limité à 5 boutons pour éviter surcharge)
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, startPage + 4);
+        if(endPage - startPage < 4){
+          startPage = Math.max(1, endPage - 4);
+        }
+
+        for(let i=startPage; i<=endPage; i++){
+          const btn = document.createElement('button');
+          btn.textContent = i;
+          if(i === currentPage) btn.classList.add('active');
+          btn.addEventListener('click', () => {
+            currentPage = i;
+            updateGallery();
+          });
+          pagination.appendChild(btn);
+        }
+
+        // Bouton suivant
+        const nextBtn = document.createElement('button');
+        nextBtn.textContent = 'Suivant ›';
+        nextBtn.disabled = currentPage === totalPages;
+        nextBtn.addEventListener('click', () => {
+          if(currentPage < totalPages){
+            currentPage++;
+            updateGallery();
+          }
+        });
+        pagination.appendChild(nextBtn);
+      }
+
+      // Gestion filtres catégorie
+      filterButtons.forEach(button => {
+        button.addEventListener('click', () => {
+          // Mise à jour des états accessibles
+          filterButtons.forEach(btn => {
+            btn.classList.remove('active');
+            btn.setAttribute('aria-pressed', 'false');
+          });
+          button.classList.add('active');
+          button.setAttribute('aria-pressed', 'true');
+
+          currentFilter = button.dataset.filter;
+          currentPage = 1;
+          updateGallery();
+        });
+      });
+
+      // Recherche texte
+      searchInput.addEventListener('input', () => {
+        currentSearch = searchInput.value.trim();
+        currentPage = 1;
+        updateGallery();
+      });
+
+      // Tri
+      sortSelect.addEventListener('change', () => {
+        currentSort = sortSelect.value;
+        currentPage = 1;
+        updateGallery();
+      });
+
+      // Ouverture vidéo fullscreen au clic
+      gallery.addEventListener('click', e => {
+        const target = e.target;
+        if(target.tagName === 'VIDEO'){
+          openOverlay(target);
+        }
+      });
+
+      // Ouverture au clavier (entrée ou espace)
+      gallery.addEventListener('keydown', e => {
+        if((e.key === 'Enter' || e.key === ' ') && e.target.tagName === 'VIDEO'){
+          e.preventDefault();
+          openOverlay(e.target);
+        }
+      });
+
+      function openOverlay(video) {
+        overlayVideo.src = video.querySelector('source').src;
+        overlayVideo.poster = video.poster;
+        overlayVideo.currentTime = 0;
+        overlay.classList.add('active');
+        overlayVideo.play();
+        overlayClose.focus();
+      }
+
+      // Fermeture overlay
+      overlayClose.addEventListener('click', closeOverlay);
+      overlay.addEventListener('click', e => {
+        if(e.target === overlay) closeOverlay();
+      });
+      // Fermeture au clavier (ESC)
+      document.addEventListener('keydown', e => {
+        if(e.key === 'Escape' && overlay.classList.contains('active')){
+          closeOverlay();
+        }
+      });
+
+      function closeOverlay() {
+        overlayVideo.pause();
+        overlayVideo.src = '';
+        overlay.classList.remove('active');
+      }
+
+      // Initialisation
+      updateGallery();
+    })();
+  </script>
+</body>
+</html>
